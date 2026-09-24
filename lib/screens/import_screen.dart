@@ -4,7 +4,6 @@ import 'package:file_picker/file_picker.dart';
 import '../services/ticket_import_service.dart';
 import '../db/db_helper.dart';
 import '../utils/responsive.dart';
-import 'scan_screen.dart';
 
 class ImportScreen extends StatefulWidget {
   const ImportScreen({super.key});
@@ -151,14 +150,12 @@ class _ImportScreenState extends State<ImportScreen> {
                     textAlign: TextAlign.center,
                   ),
                 ],
-                const SizedBox(height: 28),
+                                const SizedBox(height: 28),
                 SizedBox(
                   width: double.infinity,
                   child: TextButton(
-                    onPressed: () {
-                      Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const ScanScreen()));
-                    },
-                    child: const Text('Continue to scanner  →'),
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Done  → Back to scanner'),
                   ),
                 ),
               ],

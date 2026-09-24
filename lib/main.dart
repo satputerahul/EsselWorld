@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'screens/import_screen.dart';
+import 'screens/splash_screen.dart';
+import 'utils/app_colors.dart';
 
 void main() {
   runApp(const EsselworldScannerApp());
@@ -11,14 +12,10 @@ class EsselworldScannerApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Esselworld Scanner',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        primarySwatch: Colors.indigo,
-        useMaterial3: true,
-        scaffoldBackgroundColor: const Color(0xFFF5F5F0),
-      ),
-      home: const ImportScreen(),
+      title: 'EsselWorld Scanner',
+      debugShowCheckedModeBanner: true,
+      theme: AppColors.theme,
+      home: const SplashScreen(),
     );
   }
 }
