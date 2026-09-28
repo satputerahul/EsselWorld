@@ -1,24 +1,16 @@
-/// HARDCODED login for testing — no real backend yet. Replace with
-/// a real API call once available; screens calling login() won't
-/// need to change.
-class AuthService {
-  static const Map<String, String> _testCredentials = {
-    'gate1': 'gate123',
-    'admin': 'admin123',
-  };
+import 'registration_service.dart';
 
+class AuthService {
   static bool _isLoggedIn = false;
   static String? _currentUser;
 
-  static Future<bool> login(String username, String password) async {
-    await Future.delayed(const Duration(milliseconds: 500)); // simulate network
-    final expectedPassword = _testCredentials[username.trim().toLowerCase()];
-    if (expectedPassword != null && expectedPassword == password) {
+  static Future<LoginResult> login(String email, String password) async {
+    final result = await RegistrationService.verifyLogin(email, password);
+    if (result == LoginResult.success) {
       _isLoggedIn = true;
-      _currentUser = username.trim();
-      return true;
+      _currentUser = email.trim().toLowerCase();
     }
-    return false;
+    return result;
   }
 
   static bool get isLoggedIn => _isLoggedIn;

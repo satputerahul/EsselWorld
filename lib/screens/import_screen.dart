@@ -88,7 +88,7 @@ class _ImportScreenState extends State<ImportScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Load ticket data'),
-        backgroundColor: Colors.indigo,
+        backgroundColor: Color(0xFF0E7C86),
         foregroundColor: Colors.white,
       ),
       body: Center(
@@ -99,7 +99,7 @@ class _ImportScreenState extends State<ImportScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.storage, size: 64, color: Colors.indigo),
+                const Icon(Icons.storage, size: 64, color: Color(0xFF0E7C86)),
                 const SizedBox(height: 16),
                 Text(
                   'Tickets currently in local database: $_currentTicketCount',
@@ -122,7 +122,7 @@ class _ImportScreenState extends State<ImportScreen> {
                       icon: const Icon(Icons.file_open),
                       label: const Text('Choose CSV file'),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.indigo,
+                        backgroundColor: Color(0xFF0E7C86),
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 14),
                       ),

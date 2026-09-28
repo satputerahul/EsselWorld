@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import '../services/registration_service.dart';
 import '../utils/app_colors.dart';
-import 'device_registration_screen.dart';
+import 'login_screen.dart';
+import 'registration_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -17,11 +19,14 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   Future<void> _navigateNext() async {
-    await Future.delayed(const Duration(milliseconds: 3500));
+    await Future.delayed(const Duration(milliseconds: 1800));
+    final registered = await RegistrationService.isRegistered();
     if (!mounted) return;
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (_) => const DeviceRegistrationScreen()),
+      MaterialPageRoute(
+        builder: (_) => registered ? const LoginScreen() : const RegistrationScreen(),
+      ),
     );
   }
 
@@ -58,10 +63,7 @@ class _SplashScreenState extends State<SplashScreen> {
                 'EsselWorld',
                 style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold, letterSpacing: 0.5),
               ),
-              const Text(
-                'Gate Ticket Scanner',
-                style: TextStyle(color: Colors.white70, fontSize: 15),
-              ),
+              const Text('Gate Ticket Scanner', style: TextStyle(color: Colors.white70, fontSize: 15)),
               const SizedBox(height: 40),
               const SizedBox(
                 width: 28,

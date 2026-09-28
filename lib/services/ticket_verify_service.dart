@@ -7,9 +7,6 @@ import 'mock_api_service.dart';
 import 'connectivity_service.dart';
 import 'device_id_service.dart';
 
-/// Result of a LOOKUP (before deciding how many visitors to admit).
-/// Screens use this to show the staff member "this ticket has 3 of 7
-/// remaining" before asking how many are entering right now.
 class TicketLookupResult {
   final VerifyStatus status;
   final Ticket? ticket;
@@ -17,14 +14,9 @@ class TicketLookupResult {
   TicketLookupResult(this.status, this.ticket, {required this.wasOffline});
 }
 
-/// The single entry point every screen calls. Two-step flow to
-/// support partial scans:
-///   1. lookup(code)              -> shows current status + remaining count
-///   2. admitVisitors(code, n)    -> actually admits n people, logs the event
 class TicketVerifyService {
   static final _uuid = Uuid();
 
-  // ---------------- STEP 1: LOOKUP ----------------
 
   static Future<TicketLookupResult> lookup(String scannedCode) async {
     final isOnline = await ConnectivityService.checkNowAndReturn();
@@ -58,18 +50,12 @@ class TicketVerifyService {
     if (ticket.isPartiallyUsed) {
       return TicketLookupResult(VerifyStatus.partiallyUsed, ticket, wasOffline: wasOffline);
     }
-    // NOTE: valid_date is intentionally NOT checked here — a ticket
-    // dated days in the past or future still admits normally, per
-    // requirement ("if ticket date is after 4-5 days and if they
-    // come today they could also be get verified").
+
     return TicketLookupResult(VerifyStatus.valid, ticket, wasOffline: wasOffline);
   }
 
   // ---------------- STEP 2: ADMIT VISITORS ----------------
 
-  /// Admits [count] visitors on this ticket. [count] must not exceed
-  /// the ticket's current visitorsRemaining (screens should enforce
-  /// this in the UI, but it's re-checked here too).
   static Future<VerifyResult> admitVisitors(
     String scannedCode,
     int count,

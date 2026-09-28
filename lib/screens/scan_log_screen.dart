@@ -52,9 +52,15 @@ class _ScanLogScreenState extends State<ScanLogScreen> {
     await _loadLogs();
   }
 
-  Future<void> _exportAndShare() async {
+    Future<void> _exportAndShare(BuildContext buttonContext) async {
     try {
-      await ExportService.shareScanLog();
+      // Anchor the iOS share sheet to the Export button's position.
+      final box = buttonContext.findRenderObject() as RenderBox?;
+      final origin = box != null
+          ? box.localToGlobal(Offset.zero) & box.size
+          : const Rect.fromLTWH(0, 0, 1, 1);
+
+      await ExportService.shareScanLog(sharePositionOrigin: origin);
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Export failed: $e')));
@@ -69,7 +75,7 @@ class _ScanLogScreenState extends State<ScanLogScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Scan log'),
-        backgroundColor: Colors.indigo,
+        backgroundColor: Color(0xFF0E7C86),
         foregroundColor: Colors.white,
       ),
       body: _loading
@@ -85,7 +91,7 @@ class _ScanLogScreenState extends State<ScanLogScreen> {
                         children: [
                           Row(
                             children: [
-                              Expanded(child: _statChip('${_logs.length}', 'Total events', Colors.indigo)),
+                              Expanded(child: _statChip('${_logs.length}', 'Total events', Color(0xFF0E7C86))),
                               const SizedBox(width: 10),
                               Expanded(
                                 child: _statChip(
@@ -110,15 +116,17 @@ class _ScanLogScreenState extends State<ScanLogScreen> {
                                       ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
                                       : const Icon(Icons.sync, size: 18),
                                   label: const Text('Sync now'),
-                                  style: ElevatedButton.styleFrom(backgroundColor: Colors.indigo, foregroundColor: Colors.white),
+                                  style: ElevatedButton.styleFrom(backgroundColor: Color(0xFF0E7C86), foregroundColor: Colors.white),
                                 ),
                               ),
                               const SizedBox(width: 10),
-                              Expanded(
-                                child: OutlinedButton.icon(
-                                  onPressed: _exportAndShare,
-                                  icon: const Icon(Icons.share, size: 18),
-                                  label: const Text('Export'),
+                             Expanded(
+                                child: Builder(
+                                  builder: (btnContext) => OutlinedButton.icon(
+                                    onPressed: () => _exportAndShare(btnContext),
+                                    icon: const Icon(Icons.share, size: 18),
+                                    label: const Text('Export'),
+                                  ),
                                 ),
                               ),
                             ],

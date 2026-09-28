@@ -1,17 +1,15 @@
-import 'package:esselworld_scanner_demo/screens/import_screen.dart';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:permission_handler/permission_handler.dart';
-
 import '../models/ticket_model.dart';
 import '../services/ticket_verify_service.dart';
 import '../services/camera_permission_service.dart';
 import '../services/connectivity_service.dart';
 import '../services/sync_service.dart';
 import '../utils/responsive.dart';
-
+import '../widgets/app_drawer.dart';
 import 'result_screen.dart';
-import 'scan_log_screen.dart';
 import 'visitor_count_screen.dart';
 
 class ScanScreen extends StatefulWidget {
@@ -21,16 +19,12 @@ class ScanScreen extends StatefulWidget {
   State<ScanScreen> createState() => _ScanScreenState();
 }
 
-class _ScanScreenState extends State<ScanScreen>
-    with WidgetsBindingObserver {
-  final MobileScannerController _scannerController =
-      MobileScannerController();
-
-  final TextEditingController _codeController =
-      TextEditingController();
+class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver {
+  final MobileScannerController _scannerController = MobileScannerController();
+  final TextEditingController _codeController = TextEditingController();
+  StreamSubscription<bool>? _connectivitySub;
 
   int scannedCount = 0;
-
   bool _isProcessingScan = false;
 
   bool _permissionGranted = false;
@@ -42,75 +36,54 @@ class _ScanScreenState extends State<ScanScreen>
   @override
   void initState() {
     super.initState();
-
     WidgetsBinding.instance.addObserver(this);
-
     _requestCameraPermission();
 
     ConnectivityService.startMonitoring();
-
     _isOnline = ConnectivityService.isOnline;
-
-    ConnectivityService.onStatusChange.listen((online) {
+    _connectivitySub = ConnectivityService.onStatusChange.listen((online) {
       if (!mounted) return;
-
-      setState(() {
-        _isOnline = online;
-      });
-
+      setState(() => _isOnline = online);
       if (online) {
-        SyncService.syncNow();
+        SyncService.syncNow(); // auto-sync the moment connectivity returns
       }
     });
   }
 
   @override
   void dispose() {
+    _connectivitySub?.cancel();
     WidgetsBinding.instance.removeObserver(this);
-
     _scannerController.dispose();
     _codeController.dispose();
-
     super.dispose();
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
-      _requestCameraPermission();
-    }
+    if (state == AppLifecycleState.resumed) _requestCameraPermission();
   }
 
-  // Camera permission handling
   Future<void> _requestCameraPermission() async {
     final status = await CameraPermissionService.checkStatus();
-
     if (!mounted) return;
-
     setState(() {
       _permissionGranted = status.isGranted;
       _permissionPermanentlyDenied = status.isPermanentlyDenied;
       _checkingPermission = false;
     });
-
     if (!status.isGranted && !status.isPermanentlyDenied) {
-      final result =
-          await CameraPermissionService.requestPermission();
-
+      final result = await CameraPermissionService.requestPermission();
       if (!mounted) return;
-
       setState(() {
         _permissionGranted = result.isGranted;
-        _permissionPermanentlyDenied =
-            result.isPermanentlyDenied;
+        _permissionPermanentlyDenied = result.isPermanentlyDenied;
       });
     }
   }
 
-  // Handle QR scan
   Future<void> _handleScan(String code) async {
     if (code.trim().isEmpty || _isProcessingScan) return;
-
     _isProcessingScan = true;
 
     final lookup = await TicketVerifyService.lookup(code.trim());
@@ -120,34 +93,23 @@ class _ScanScreenState extends State<ScanScreen>
       return;
     }
 
-    // Invalid or already used ticket
-    if (lookup.status == VerifyStatus.invalid ||
-        lookup.status == VerifyStatus.alreadyUsed) {
+    if (lookup.status == VerifyStatus.invalid || lookup.status == VerifyStatus.alreadyUsed) {
       await Navigator.push(
         context,
         MaterialPageRoute(
           builder: (_) => ResultScreen(
-            result: VerifyResult(
-              lookup.status,
-              lookup.ticket,
-              wasOffline: lookup.wasOffline,
-            ),
+            result: VerifyResult(lookup.status, lookup.ticket, wasOffline: lookup.wasOffline),
           ),
         ),
       );
-
       _resetAfterScan();
       return;
     }
 
-    // Valid or partially used ticket
     final ticket = lookup.ticket!;
-
     final countToAdmit = await Navigator.push<int>(
       context,
-      MaterialPageRoute(
-        builder: (_) => VisitorCountScreen(ticket: ticket),
-      ),
+      MaterialPageRoute(builder: (_) => VisitorCountScreen(ticket: ticket)),
     );
 
     if (countToAdmit == null || countToAdmit <= 0) {
@@ -155,124 +117,60 @@ class _ScanScreenState extends State<ScanScreen>
       return;
     }
 
-    final result = await TicketVerifyService.admitVisitors(
-      ticket.ticketId,
-      countToAdmit,
-    );
+    final result = await TicketVerifyService.admitVisitors(ticket.ticketId, countToAdmit);
 
-    if (result.status == VerifyStatus.valid) {
-      setState(() {
-        scannedCount += countToAdmit;
-      });
-    } else if (result.status == VerifyStatus.partiallyUsed) {
-      setState(() {
-        scannedCount += countToAdmit;
-      });
+    if (result.status == VerifyStatus.valid || result.status == VerifyStatus.partiallyUsed) {
+      setState(() => scannedCount += countToAdmit);
     }
 
     if (!mounted) return;
-
-    await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => ResultScreen(result: result),
-      ),
-    );
-
+    await Navigator.push(context, MaterialPageRoute(builder: (_) => ResultScreen(result: result)));
     _resetAfterScan();
   }
 
-  // Reset scan state
   void _resetAfterScan() {
     _codeController.clear();
     _isProcessingScan = false;
   }
 
-  // QR detection
   void _onDetect(BarcodeCapture capture) {
     if (_isProcessingScan) return;
-
     final barcodes = capture.barcodes;
-
     if (barcodes.isEmpty) return;
-
     final code = barcodes.first.rawValue;
-
-    if (code != null && code.isNotEmpty) {
-      _handleScan(code);
-    }
+    if (code != null && code.isNotEmpty) _handleScan(code);
   }
 
   @override
   Widget build(BuildContext context) {
     final r = Responsive(context);
 
-    final mediaQuery = MediaQuery.of(context);
-
-    final screenHeight = mediaQuery.size.height;
-
-    // Responsive vertical spacing
-    final verticalSpacing = screenHeight < 700 ? 12.0 : 20.0;
-
     return Scaffold(
+      drawer: const AppDrawer(),
       appBar: AppBar(
-        title: const Text('Esselworld gate scanner'),
-        backgroundColor: Colors.indigo,
-        foregroundColor: Colors.white,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.upload_file),
-            tooltip: 'Import ticket data',
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const ImportScreen(),
-                ),
-              );
-            },
+        title: const Text('EsselWorld gate scanner'),
+        leading: Builder(
+          builder: (ctx) => IconButton(
+            icon: const Icon(Icons.account_circle, size: 30),
+            tooltip: 'Profile',
+            onPressed: () => Scaffold.of(ctx).openDrawer(),
           ),
-          IconButton(
-            icon: const Icon(Icons.list_alt),
-            tooltip: 'Scan log',
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const ScanLogScreen(),
-                ),
-              );
-            },
-          ),
-        ],
+        ),
       ),
-
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
-            constraints: BoxConstraints(
-              maxWidth: r.contentMaxWidth,
-            ),
+            constraints: BoxConstraints(maxWidth: r.contentMaxWidth),
             child: SingleChildScrollView(
-              padding: EdgeInsets.symmetric(
-                horizontal: r.horizontalPadding,
-                vertical: screenHeight < 700 ? 8 : 12,
-              ),
+              padding: EdgeInsets.symmetric(horizontal: r.horizontalPadding, vertical: 20),
               child: Column(
-                mainAxisSize: MainAxisSize.min,
                 children: [
                   _modeBadge(r),
-
-                  SizedBox(height: verticalSpacing / 2),
-
+                  const SizedBox(height: 12),
                   _counterCard(r),
-
-                  SizedBox(height: verticalSpacing),
-
+                  const SizedBox(height: 20),
                   _cameraArea(r),
-
-                  SizedBox(height: verticalSpacing),
-
+                  const SizedBox(height: 20),
                   _manualTestInput(r),
                 ],
               ),
@@ -283,131 +181,71 @@ class _ScanScreenState extends State<ScanScreen>
     );
   }
 
-  // Online / Offline badge
   Widget _modeBadge(Responsive r) {
     final color = _isOnline ? Colors.green : Colors.orange;
-
     final label = _isOnline ? 'Online mode' : 'Offline mode';
-
     final icon = _isOnline ? Icons.wifi : Icons.wifi_off;
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(
-        vertical: 8,
-        horizontal: 12,
-      ),
+      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
       decoration: BoxDecoration(
         color: color.withOpacity(0.12),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: color.withOpacity(0.4),
-        ),
+        border: Border.all(color: color.withOpacity(0.4)),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            icon,
-            size: 16,
-            color: color,
-          ),
-
+          Icon(icon, size: 16, color: color),
           const SizedBox(width: 6),
-
-          Text(
-            label,
-            style: TextStyle(
-              color: color,
-              fontWeight: FontWeight.w600,
-              fontSize: 13,
-            ),
-          ),
+          Text(label, style: TextStyle(color: color, fontWeight: FontWeight.w600, fontSize: 13)),
         ],
       ),
     );
   }
 
-  // Visitor counter card
   Widget _counterCard(Responsive r) {
     return Container(
-      padding: const EdgeInsets.symmetric(
-        vertical: 12,
-        horizontal: 16,
-      ),
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
       decoration: BoxDecoration(
-        color: Colors.indigo.shade50,
+        color: Colors.teal.shade50,
         borderRadius: BorderRadius.circular(12),
       ),
       width: double.infinity,
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            'Visitors admitted today',
-            style: TextStyle(
-              fontSize: 14 * r.baseFontScale,
-            ),
-          ),
-
-          Text(
-            '$scannedCount',
-            style: TextStyle(
-              fontSize: 20 * r.baseFontScale,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
+          Text('Visitors admitted today', style: TextStyle(fontSize: 14 * r.baseFontScale)),
+          Text('$scannedCount',
+              style: TextStyle(fontSize: 20 * r.baseFontScale, fontWeight: FontWeight.bold)),
         ],
       ),
     );
   }
 
-  // Responsive camera area and permission UI
   Widget _cameraArea(Responsive r) {
-    final mediaQuery = MediaQuery.of(context);
-
-    final screenHeight = mediaQuery.size.height;
-
-    // Responsive camera height
-    final cameraHeight = (screenHeight * 0.38)
-        .clamp(180.0, r.scannerHeight)
-        .toDouble();
-
-    // Permission checking loader
     if (_checkingPermission) {
-      return SizedBox(
-        height: cameraHeight,
-        child: const Center(
-          child: CircularProgressIndicator(),
-        ),
-      );
+      return SizedBox(height: r.scannerHeight, child: const Center(child: CircularProgressIndicator()));
     }
 
-    // Camera permission granted
     if (_permissionGranted) {
       return ClipRRect(
         borderRadius: BorderRadius.circular(16),
         child: SizedBox(
-          height: cameraHeight,
+          height: r.scannerHeight,
           width: double.infinity,
           child: Stack(
             fit: StackFit.expand,
             children: [
-              MobileScanner(
-                controller: _scannerController,
-                onDetect: _onDetect,
-              ),
-
+              MobileScanner(controller: _scannerController, onDetect: _onDetect),
               IgnorePointer(
                 child: Center(
                   child: Container(
-                    width: cameraHeight * 0.7,
-                    height: cameraHeight * 0.7,
+                    width: r.scannerHeight * 0.7,
+                    height: r.scannerHeight * 0.7,
                     decoration: BoxDecoration(
-                      border: Border.all(
-                        color: Colors.white,
-                        width: 2,
-                      ),
+                      border: Border.all(color: Colors.white, width: 2),
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
@@ -419,123 +257,62 @@ class _ScanScreenState extends State<ScanScreen>
       );
     }
 
-    // Camera permission denied
-    final permissionPanelHeight = (screenHeight * 0.35)
-        .clamp(150.0, 260.0)
-        .toDouble();
+    // Permission not granted: height comes from MediaQuery (minHeight) and
+    // the content sizes itself, which avoids the bottom overflow.
+    final mq = MediaQuery.of(context);
+    final minAreaHeight = mq.size.height * 0.28;
 
     return Container(
-      constraints: BoxConstraints(
-        minHeight: 150,
-        maxHeight: permissionPanelHeight,
-      ),
+      constraints: BoxConstraints(minHeight: minAreaHeight),
       width: double.infinity,
-      decoration: BoxDecoration(
-        color: Colors.black87,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      padding: EdgeInsets.all(
-        screenHeight < 700 ? 10 : 16,
-      ),
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              _permissionPermanentlyDenied
-                  ? Icons.no_photography
-                  : Icons.camera_alt_outlined,
-              color: Colors.white70,
-              size: screenHeight < 700 ? 30 : 36,
-            ),
-
-            SizedBox(
-              height: screenHeight < 700 ? 6 : 8,
-            ),
-
-            Text(
-              _permissionPermanentlyDenied
-                  ? 'Camera permission is off.\n'
-                      'Enable it from settings to scan QR codes.'
-                  : 'Camera access is needed to scan tickets',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Colors.white70,
-                fontSize: 13 * r.baseFontScale,
-              ),
-            ),
-
-            SizedBox(
-              height: screenHeight < 700 ? 6 : 8,
-            ),
-
-            ElevatedButton(
-              onPressed: _permissionPermanentlyDenied
-                  ? CameraPermissionService.openSettings
-                  : _requestCameraPermission,
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
-                ),
-                minimumSize: const Size(0, 36),
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
-              child: Text(
-                _permissionPermanentlyDenied
-                    ? 'Open settings'
-                    : 'Allow camera',
-              ),
-            ),
-          ],
-        ),
+      decoration: BoxDecoration(color: Colors.black87, borderRadius: BorderRadius.circular(16)),
+      padding: EdgeInsets.symmetric(vertical: 20, horizontal: r.horizontalPadding * 0.75),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(_permissionPermanentlyDenied ? Icons.no_photography : Icons.camera_alt_outlined,
+              color: Colors.white70, size: 40),
+          const SizedBox(height: 12),
+          Text(
+            _permissionPermanentlyDenied
+                ? 'Camera permission is off.\nEnable it from settings to scan QR codes.'
+                : 'Camera access is needed to scan tickets',
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: Colors.white70, fontSize: 13),
+          ),
+          const SizedBox(height: 14),
+          ElevatedButton(
+            onPressed: _permissionPermanentlyDenied
+                ? CameraPermissionService.openSettings
+                : _requestCameraPermission,
+            child: Text(_permissionPermanentlyDenied ? 'Open settings' : 'Allow camera'),
+          ),
+        ],
       ),
     );
   }
 
-  // Manual ticket verification
   Widget _manualTestInput(Responsive r) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Or enter manually (for testing)',
-          style: TextStyle(
-            fontSize: 13 * r.baseFontScale,
-            color: Colors.black54,
-          ),
-        ),
-
+        Text('Or enter manually (for testing)',
+            style: TextStyle(fontSize: 13 * r.baseFontScale, color: Colors.black54)),
         const SizedBox(height: 8),
-
         TextField(
           controller: _codeController,
           decoration: InputDecoration(
-            hintText:
-                'Try: EW-00673105, 2SZ5MD, WKMI0M1NK10J3T, EW-1004, EW-1006, EW-0922',
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
+            hintText: 'Try: EW-00673105, 2SZ5MD, WKMI0M1NK10J3T, EW-1004, EW-1006, EW-0922',
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
           ),
           onSubmitted: _handleScan,
         ),
-
         const SizedBox(height: 12),
-
         SizedBox(
           width: double.infinity,
           child: ElevatedButton(
-            onPressed: () {
-              _handleScan(_codeController.text);
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.indigo,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(
-                vertical: 14,
-              ),
-            ),
+            onPressed: () => _handleScan(_codeController.text),
             child: const Text('Verify ticket'),
           ),
         ),
