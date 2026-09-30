@@ -2,6 +2,11 @@ import 'dart:io' show Platform;
 import 'package:android_id/android_id.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 
+/// Auto-fetched, per-platform stable device identifier:
+///  - Android: real ANDROID_ID (16-char hex). Stable across reboots,
+///    reinstalls and updates. Changes only on factory reset.
+///  - iOS / iOS simulator: identifierForVendor (UUID). Stable while
+///    the app stays installed on that device/simulator.
 class DeviceIdService {
   static String? _cachedDeviceId;
   static String? _cachedGateLabel;

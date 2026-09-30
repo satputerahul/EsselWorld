@@ -8,7 +8,7 @@ class Responsive {
   double get height => MediaQuery.of(context).size.height;
 
   bool get isPhone => width < 600;
-  bool get isTablet => width >= 600 && width <= 1024;
+  bool get isTablet => width >= 800 && width <= 1340;
   bool get isLargeScreen => width > 1024;
 
   double get contentMaxWidth {

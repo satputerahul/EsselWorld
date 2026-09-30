@@ -1,21 +1,22 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
+import '../services/connectivity_service.dart';
 import '../services/registration_service.dart';
 import '../utils/app_colors.dart';
-import '../utils/responsive.dart';
-import 'registration_screen.dart';
+import 'import_screen.dart';
 import 'scan_screen.dart';
+import 'user_registration_screen.dart';
 
 class LoginScreen extends StatefulWidget {
-  final String? prefillEmail;
-  const LoginScreen({super.key, this.prefillEmail});
+  final String? prefillUsername;
+  const LoginScreen({super.key, this.prefillUsername});
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final _emailC = TextEditingController();
+  final _usernameC = TextEditingController();
   final _passC = TextEditingController();
   bool _loading = false;
   bool _obscure = true;
@@ -28,9 +29,9 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _prefill() async {
-    final email = widget.prefillEmail ?? await RegistrationService.getRegisteredEmail();
+    final username = widget.prefillUsername ?? await RegistrationService.getRegisteredUsername();
     if (!mounted) return;
-    if (email != null) _emailC.text = email;
+    if (username != null) _usernameC.text = username;
   }
 
   Future<void> _handleLogin() async {
@@ -39,118 +40,167 @@ class _LoginScreenState extends State<LoginScreen> {
       _error = null;
     });
 
-    final result = await AuthService.login(_emailC.text, _passC.text);
+    final result = await AuthService.login(_usernameC.text, _passC.text);
 
     if (!mounted) return;
-    setState(() => _loading = false);
 
     switch (result) {
       case LoginResult.success:
-        Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const ScanScreen()));
+        final online = await ConnectivityService.checkNowAndReturn();
+        if (!mounted) return;
+        setState(() => _loading = false);
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => online ? const ScanScreen() : const ImportScreen()),
+        );
         break;
       case LoginResult.wrongCredentials:
-        setState(() => _error = 'Invalid email or password');
+        setState(() {
+          _loading = false;
+          _error = 'Invalid username or password';
+        });
         break;
       case LoginResult.wrongDevice:
-        setState(() => _error = 'This account is registered on a different device');
+        setState(() {
+          _loading = false;
+          _error = 'This account is registered on a different device';
+        });
         break;
       case LoginResult.notRegistered:
-        setState(() => _error = 'No account found on this device. Please register.');
+        setState(() {
+          _loading = false;
+          _error = 'No account found on this device. Please register.';
+        });
         break;
     }
   }
 
   @override
   void dispose() {
-    _emailC.dispose();
+    _usernameC.dispose();
     _passC.dispose();
     super.dispose();
   }
 
+  Widget _iconTile(IconData icon) {
+    return Container(
+      margin: const EdgeInsets.all(8),
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(color: AppColors.primary.withOpacity(0.10), borderRadius: BorderRadius.circular(10)),
+      child: Icon(icon, color: AppColors.primaryDark, size: 22),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final r = Responsive(context);
+    final mq = MediaQuery.of(context);
+    final isTablet = mq.size.width >= 600;
+    final cardMaxWidth = isTablet ? 520.0 : double.infinity;
+    final logoSize = mq.size.width * (isTablet ? 0.32 : 0.48);
 
     return Scaffold(
-      body: SafeArea(
-        child: Center(
-          child: ConstrainedBox(
-            constraints: BoxConstraints(maxWidth: r.contentMaxWidth),
-            child: SingleChildScrollView(
-              padding: EdgeInsets.all(r.horizontalPadding),
-              child: Column(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(18),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withOpacity(0.1),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(Icons.qr_code_scanner, size: 48, color: AppColors.primary),
-                  ),
-                  const SizedBox(height: 16),
-                  const Text('Staff Login', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 4),
-                  const Text('EsselWorld Gate Scanner', style: TextStyle(fontSize: 13, color: Colors.black54)),
-                  const SizedBox(height: 32),
-                  TextField(
-                    controller: _emailC,
-                    keyboardType: TextInputType.emailAddress,
-                    decoration: const InputDecoration(labelText: 'Email', prefixIcon: Icon(Icons.email_outlined)),
-                  ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: _passC,
-                    obscureText: _obscure,
-                    decoration: InputDecoration(
-                      labelText: 'Password',
-                      prefixIcon: const Icon(Icons.lock_outline),
-                      suffixIcon: IconButton(
-                        icon: Icon(_obscure ? Icons.visibility_off : Icons.visibility),
-                        onPressed: () => setState(() => _obscure = !_obscure),
-                      ),
-                    ),
-                    onSubmitted: (_) => _handleLogin(),
-                  ),
-                  if (_error != null) ...[
-                    const SizedBox(height: 12),
-                    Text(_error!, style: const TextStyle(color: AppColors.error, fontSize: 13)),
-                  ],
-                  const SizedBox(height: 24),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: _loading ? null : _handleLogin,
-                      child: _loading
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                            )
-                          : const Text('Login'),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
+      resizeToAvoidBottomInset: true,
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          Image.asset('assets/images/backgroundIMG.png', fit: BoxFit.cover),
+          SafeArea(
+            child: Center(
+              child: SingleChildScrollView(
+                padding: EdgeInsets.symmetric(horizontal: isTablet ? 32 : 18, vertical: 16),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(maxWidth: cardMaxWidth),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Text("Don't have an account?", style: TextStyle(color: Colors.black54)),
-                      TextButton(
-                        onPressed: () {
-                          Navigator.pushReplacement(
-                            context,
-                            MaterialPageRoute(builder: (_) => const RegistrationScreen()),
-                          );
-                        },
-                        child: const Text('Register', style: TextStyle(fontWeight: FontWeight.bold)),
+                      SizedBox(
+                        width: logoSize,
+                        height: logoSize,
+                        child: Image.asset('assets/icon/app_icon.png', fit: BoxFit.contain),
+                      ),
+                      const SizedBox(height: 4),
+                      const Text('Staff Login',
+                          style: TextStyle(fontSize: 30, fontWeight: FontWeight.bold, color: AppColors.primaryDark)),
+                      const SizedBox(height: 4),
+                      const Text(
+                        'Login to start scanning tickets',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 14, color: Colors.black54),
+                      ),
+                      const SizedBox(height: 18),
+                      Container(
+                        padding: const EdgeInsets.all(18),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.94),
+                          borderRadius: BorderRadius.circular(24),
+                          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.10), blurRadius: 20, offset: const Offset(0, 8))],
+                        ),
+                        child: Column(
+                          children: [
+                            TextField(
+                              controller: _usernameC,
+                              decoration: InputDecoration(labelText: 'Username', prefixIcon: _iconTile(Icons.person_outline)),
+                            ),
+                            const SizedBox(height: 12),
+                            TextField(
+                              controller: _passC,
+                              obscureText: _obscure,
+                              decoration: InputDecoration(
+                                labelText: 'Password',
+                                prefixIcon: _iconTile(Icons.lock_outline),
+                                suffixIcon: IconButton(
+                                  icon: Icon(_obscure ? Icons.visibility_off : Icons.visibility),
+                                  onPressed: () => setState(() => _obscure = !_obscure),
+                                ),
+                              ),
+                              onSubmitted: (_) => _handleLogin(),
+                            ),
+                            if (_error != null) ...[
+                              const SizedBox(height: 12),
+                              Text(_error!, textAlign: TextAlign.center, style: const TextStyle(color: AppColors.error, fontSize: 13)),
+                            ],
+                            const SizedBox(height: 20),
+                            SizedBox(
+                              width: double.infinity,
+                              height: 52,
+                              child: ElevatedButton(
+                                style: ElevatedButton.styleFrom(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28))),
+                                onPressed: _loading ? null : _handleLogin,
+                                child: _loading
+                                    ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                                    : const Row(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [Text('Login', style: TextStyle(fontSize: 16)), SizedBox(width: 8), Icon(Icons.arrow_forward, size: 20)],
+                                      ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+                        decoration: BoxDecoration(color: Colors.white.withOpacity(0.85), borderRadius: BorderRadius.circular(20)),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Text("Don't have an account?", style: TextStyle(color: Colors.black54)),
+                            TextButton(
+                              onPressed: () {
+                                Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const UserRegistrationScreen()));
+                              },
+                              child: const Text('Register', style: TextStyle(fontWeight: FontWeight.bold)),
+                            ),
+                          ],
+                        ),
                       ),
                     ],
                   ),
-                ],
+                ),
               ),
             ),
           ),
-        ),
+        ],
       ),
     );
   }

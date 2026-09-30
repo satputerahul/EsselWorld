@@ -41,6 +41,8 @@ flutter:
 
   assets:
     - assets/data/sample_tickets.csv
+    - assets/images/backgroundIMG.png
+    - assets/icon/app_icon.png
 
 # App Launcher Icon Configuration
 flutter_launcher_icons:
