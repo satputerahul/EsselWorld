@@ -105,9 +105,6 @@ class DbHelper {
     return Ticket.fromMap(rows.first);
   }
 
-  /// Increments visitors_used by [count] on THIS device's local copy,
-  /// and updates status accordingly. Does not touch other devices —
-  /// they have their own separate local database files.
   Future<Ticket> incrementVisitorsUsed(
     String ticketId,
     int count,

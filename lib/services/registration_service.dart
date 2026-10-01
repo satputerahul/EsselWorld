@@ -5,9 +5,11 @@ import 'device_id_service.dart';
 
 enum LoginResult { success, wrongCredentials, wrongDevice, notRegistered }
 
-/// STEP 2 record: the staff USER account, separate from
-/// DeviceRegistrationService. Password stored as a SHA-256 hash,
-/// account bound to this device's id.
+/// STEP 2 of the registration flow: the USER-level account (staff
+/// member using the tablet), separate from DeviceRegistrationService
+/// (which handles the tablet itself). Stored locally since there is
+/// no backend yet; the password is stored as a SHA-256 hash, never
+/// plain text, and the account is bound to this device's ID.
 class RegistrationService {
   static const _kUsername = 'reg_username';
   static const _kMobile = 'reg_mobile';
@@ -39,6 +41,7 @@ class RegistrationService {
     await prefs.setString(_kPasswordHash, _hash(password, deviceId));
   }
 
+  /// Login uses Username + Password, per the flow.
   static Future<LoginResult> verifyLogin(String username, String password) async {
     final prefs = await SharedPreferences.getInstance();
     final savedUsername = prefs.getString(_kUsername);
@@ -62,6 +65,24 @@ class RegistrationService {
     return prefs.getString(_kUsername);
   }
 
+  /// Checks whether [username] matches the registered account on
+  /// this device — used for the live validation on Forgot Password.
+  static Future<bool> isUsernameValid(String username) async {
+    final saved = await getRegisteredUsername();
+    if (saved == null) return false;
+    return username.trim().toLowerCase() == saved.toLowerCase();
+  }
+
+  /// Resets the password for the registered account on this device.
+  /// Only call after isUsernameValid() has confirmed the username.
+  static Future<void> resetPassword(String newPassword) async {
+    final prefs = await SharedPreferences.getInstance();
+    final deviceId = prefs.getString(_kDeviceId);
+    if (deviceId == null) return;
+    await prefs.setString(_kPasswordHash, _hash(newPassword, deviceId));
+  }
+
+  /// Testing helper: wipes the user registration.
   static Future<void> clearRegistration() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_kUsername);

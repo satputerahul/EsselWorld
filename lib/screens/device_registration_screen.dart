@@ -168,7 +168,7 @@ class _DeviceRegistrationScreenState extends State<DeviceRegistrationScreen> {
                                       ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                                       : const Row(
                                           mainAxisAlignment: MainAxisAlignment.center,
-                                          children: [Text('Register', style: TextStyle(fontSize: 16)), SizedBox(width: 8), Icon(Icons.arrow_forward, size: 20)],
+                                          children: [Text('Register', style: TextStyle(fontSize: 19, fontWeight: FontWeight.w700))],
                                         ),
                                 ),
                               ),

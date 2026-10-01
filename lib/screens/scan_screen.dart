@@ -257,8 +257,6 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver {
       );
     }
 
-    // Permission not granted: height comes from MediaQuery (minHeight) and
-    // the content sizes itself, which avoids the bottom overflow.
     final mq = MediaQuery.of(context);
     final minAreaHeight = mq.size.height * 0.28;
 
@@ -297,7 +295,7 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Or enter manually (for testing)',
+        Text('Or enter manually',
             style: TextStyle(fontSize: 13 * r.baseFontScale, color: Colors.black54)),
         const SizedBox(height: 8),
         TextField(

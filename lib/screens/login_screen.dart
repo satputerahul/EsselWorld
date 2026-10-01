@@ -3,6 +3,7 @@ import '../services/auth_service.dart';
 import '../services/connectivity_service.dart';
 import '../services/registration_service.dart';
 import '../utils/app_colors.dart';
+import 'forgot_password_screen.dart';
 import 'import_screen.dart';
 import 'scan_screen.dart';
 import 'user_registration_screen.dart';
@@ -170,8 +171,29 @@ class _LoginScreenState extends State<LoginScreen> {
                                     ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                                     : const Row(
                                         mainAxisAlignment: MainAxisAlignment.center,
-                                        children: [Text('Login', style: TextStyle(fontSize: 16)), SizedBox(width: 8), Icon(Icons.arrow_forward, size: 20)],
+                                        children: [Text('Login', style: TextStyle(fontSize: 19, fontWeight: FontWeight.w700))],
                                       ),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            Align(
+                              alignment: Alignment.centerRight,
+                              child: TextButton(
+                                onPressed: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(builder: (_) => const ForgotPasswordScreen()),
+                                  );
+                                },
+                                style: TextButton.styleFrom(
+                                  padding: EdgeInsets.zero,
+                                  minimumSize: const Size(0, 0),
+                                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                ),
+                                child: const Text(
+                                  'Forgot password?',
+                                  style: TextStyle(fontSize: 14, color: AppColors.primaryDark, fontWeight: FontWeight.w700),
+                                ),
                               ),
                             ),
                           ],

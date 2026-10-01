@@ -4,6 +4,7 @@ import 'package:file_picker/file_picker.dart';
 import '../services/ticket_import_service.dart';
 import '../db/db_helper.dart';
 import '../utils/responsive.dart';
+import 'scan_screen.dart';
 
 class ImportScreen extends StatefulWidget {
   const ImportScreen({super.key});
@@ -46,7 +47,8 @@ class _ImportScreenState extends State<ImportScreen> {
         });
         return;
       }
-      final count = await TicketImportService.importFromCsvFile(result.files.single.path!);
+      final count = await TicketImportService.importFromCsvFile(
+          result.files.single.path!);
       setState(() {
         _importing = false;
         _statusMessage = 'Imported $count tickets successfully';
@@ -66,7 +68,8 @@ class _ImportScreenState extends State<ImportScreen> {
       _statusMessage = null;
     });
     try {
-      final csvString = await rootBundle.loadString('assets/data/sample_tickets.csv');
+      final csvString =
+          await rootBundle.loadString('assets/data/sample_tickets.csv');
       final count = await TicketImportService.importFromCsvString(csvString);
       setState(() {
         _importing = false;
@@ -103,7 +106,8 @@ class _ImportScreenState extends State<ImportScreen> {
                 const SizedBox(height: 16),
                 Text(
                   'Tickets currently in local database: $_currentTicketCount',
-                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+                  style: const TextStyle(
+                      fontSize: 15, fontWeight: FontWeight.w500),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 8),
@@ -135,7 +139,8 @@ class _ImportScreenState extends State<ImportScreen> {
                       onPressed: _importSampleData,
                       icon: const Icon(Icons.science_outlined),
                       label: const Text('Load sample test data'),
-                      style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14)),
+                      style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 14)),
                     ),
                   ),
                 ],
@@ -144,18 +149,25 @@ class _ImportScreenState extends State<ImportScreen> {
                   Text(
                     _statusMessage!,
                     style: TextStyle(
-                      color: _statusMessage!.startsWith('Import failed') ? Colors.red : Colors.green.shade700,
+                      color: _statusMessage!.startsWith('Import failed')
+                          ? Colors.red
+                          : Colors.green.shade700,
                       fontWeight: FontWeight.w500,
                     ),
                     textAlign: TextAlign.center,
                   ),
                 ],
-                                const SizedBox(height: 28),
+                const SizedBox(height: 28),
                 SizedBox(
                   width: double.infinity,
                   child: TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text('Done  → Back to scanner'),
+                    onPressed: () {
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(builder: (_) => const ScanScreen()),
+                      );
+                    },
+                    child: const Text('Done  \u2192 Back to scanner'),
                   ),
                 ),
               ],

@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../utils/app_colors.dart';
 
@@ -13,7 +14,11 @@ Future<bool?> showOtpDialog(
   return showDialog<bool>(
     context: context,
     barrierDismissible: true,
-    builder: (ctx) => _OtpDialogContent(emailForDisplay: emailForDisplay, dummyOtp: dummyOtp),
+    barrierColor: Colors.black.withOpacity(0.55), // dim + separate from bg
+    builder: (ctx) => BackdropFilter(
+      filter: ImageFilter.blur(sigmaX: 3, sigmaY: 3), // soft blur behind popup
+      child: _OtpDialogContent(emailForDisplay: emailForDisplay, dummyOtp: dummyOtp),
+    ),
   );
 }
 
@@ -86,16 +91,12 @@ class _OtpDialogContentState extends State<_OtpDialogContent> {
       backgroundColor: Colors.transparent,
       insetPadding: const EdgeInsets.symmetric(horizontal: 24),
       child: Container(
-        padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
+        padding: const EdgeInsets.fromLTRB(24, 36, 24, 24),
         decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Colors.white, AppColors.primaryLight.withOpacity(0.25)],
-          ),
-          borderRadius: BorderRadius.circular(22),
+          color: Colors.white, // SOLID white now, not a transparent gradient
+          borderRadius: BorderRadius.circular(24),
           boxShadow: [
-            BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 24, offset: const Offset(0, 10)),
+            BoxShadow(color: Colors.black.withOpacity(0.25), blurRadius: 30, offset: const Offset(0, 12)),
           ],
         ),
         child: Column(
@@ -106,51 +107,75 @@ class _OtpDialogContentState extends State<_OtpDialogContent> {
               child: GestureDetector(
                 onTap: () => Navigator.pop(context, false),
                 child: Container(
-                  padding: const EdgeInsets.all(4),
+                  padding: const EdgeInsets.all(5),
                   decoration: BoxDecoration(color: Colors.black.withOpacity(0.06), shape: BoxShape.circle),
                   child: const Icon(Icons.close, size: 18, color: Colors.black54),
                 ),
               ),
             ),
             Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(color: AppColors.primary.withOpacity(0.12), shape: BoxShape.circle),
-              child: const Icon(Icons.mark_email_read_outlined, size: 34, color: AppColors.primaryDark),
+              width: 72,
+              height: 72,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [AppColors.primary, AppColors.primaryDark],
+                ),
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(color: AppColors.primary.withOpacity(0.35), blurRadius: 16, offset: const Offset(0, 6)),
+                ],
+              ),
+              child: const Icon(Icons.mark_email_read_rounded, size: 36, color: Colors.white),
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 18),
             const Text('Enter OTP', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: AppColors.primaryDark)),
-            const SizedBox(height: 6),
-            Text(
-              'We have sent a 6 digit OTP to\n${widget.emailForDisplay}',
+            const SizedBox(height: 8),
+            RichText(
               textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 13, color: Colors.black54),
+              text: TextSpan(
+                style: const TextStyle(fontSize: 13, color: Colors.black54, height: 1.4),
+                children: [
+                  const TextSpan(text: 'We have sent a 6 digit OTP to\n'),
+                  TextSpan(
+                    text: widget.emailForDisplay,
+                    style: const TextStyle(fontWeight: FontWeight.w600, color: AppColors.primaryDark),
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 24),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: List.generate(6, (i) {
                 return SizedBox(
                   width: 42,
+                  height: 52,
                   child: TextField(
                     controller: _controllers[i],
                     focusNode: _focusNodes[i],
                     textAlign: TextAlign.center,
                     keyboardType: TextInputType.number,
                     maxLength: 1,
-                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.primaryDark),
                     decoration: InputDecoration(
                       counterText: '',
                       contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                      filled: true,
+                      fillColor: AppColors.primary.withOpacity(0.06),
                       border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: const BorderSide(color: AppColors.primary),
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: AppColors.primary.withOpacity(0.3)),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: AppColors.primary.withOpacity(0.3)),
                       ),
                       focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
+                        borderRadius: BorderRadius.circular(12),
                         borderSide: const BorderSide(color: AppColors.primaryDark, width: 2),
                       ),
-                      fillColor: Colors.white,
-                      filled: true,
                     ),
                     onChanged: (v) => _onDigitChanged(i, v),
                   ),
@@ -158,23 +183,39 @@ class _OtpDialogContentState extends State<_OtpDialogContent> {
               }),
             ),
             if (_error != null) ...[
-              const SizedBox(height: 10),
-              Text(_error!, style: const TextStyle(color: AppColors.error, fontSize: 12)),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: AppColors.error.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.error_outline, size: 16, color: AppColors.error),
+                    const SizedBox(width: 6),
+                    Text(_error!, style: const TextStyle(color: AppColors.error, fontSize: 12)),
+                  ],
+                ),
+              ),
             ],
-            const SizedBox(height: 20),
+            const SizedBox(height: 24),
             SizedBox(
               width: double.infinity,
-              height: 48,
+              height: 50,
               child: ElevatedButton(
                 onPressed: _verifying ? null : _submit,
                 style: ElevatedButton.styleFrom(
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                  backgroundColor: AppColors.primaryDark,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
                 ),
                 child: _verifying
                     ? const SizedBox(
                         width: 20, height: 20,
                         child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                    : const Text('Submit', style: TextStyle(fontSize: 16)),
+                    : const Text('Submit', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.white)),
               ),
             ),
           ],

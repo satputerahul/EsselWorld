@@ -134,7 +134,7 @@ class _VisitorCountScreenState extends State<VisitorCountScreen> {
       children: [
         Text(value,
             style: TextStyle(
-              fontSize: 22,
+              fontSize: 22, 
               fontWeight: FontWeight.bold,
               color: highlight ? Colors.indigo : Colors.black87,
             )),
